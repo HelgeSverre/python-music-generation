@@ -36,7 +36,7 @@ def create_sequences(notes, sequence_length=100):
     input_sequences = []
     output_sequences = []
     for i in range(0, len(notes) - sequence_length, 1):
-        input_sequences.append(notes[i : i + sequence_length])
+        input_sequences.append(notes[i: i + sequence_length])
         output_sequences.append(notes[i + sequence_length])
 
     logging.debug(f"Created {len(input_sequences)} input sequences")
@@ -141,14 +141,14 @@ class EncoderLayer(tf.keras.layers.Layer):
 
 class Encoder(tf.keras.layers.Layer):
     def __init__(
-        self,
-        num_layers,
-        d_model,
-        num_heads,
-        dff,
-        input_vocab_size,
-        maximum_position_encoding,
-        rate=0.1,
+            self,
+            num_layers,
+            d_model,
+            num_heads,
+            dff,
+            input_vocab_size,
+            maximum_position_encoding,
+            rate=0.1,
     ):
         super(Encoder, self).__init__()
         self.d_model = d_model
@@ -172,12 +172,12 @@ class Encoder(tf.keras.layers.Layer):
 
 
 def build_transformer(
-    vocab_size,
-    d_model=256,
-    num_layers=4,
-    num_heads=8,
-    dff=1024,
-    maximum_position_encoding=10000,
+        vocab_size,
+        d_model=256,
+        num_layers=4,
+        num_heads=8,
+        dff=1024,
+        maximum_position_encoding=10000,
 ):
     inputs = tf.keras.Input(shape=(None,))
     enc_padding_mask = None
@@ -200,7 +200,7 @@ def build_transformer(
 
 
 def generate_midi(
-    model, start_sequence, vocab_to_int, int_to_vocab, num_notes=500, temperature=1.0
+        model, start_sequence, vocab_to_int, int_to_vocab, num_notes=500, temperature=1.0
 ):
     current_sequence = start_sequence
     output_sequence = []

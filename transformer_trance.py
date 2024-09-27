@@ -245,7 +245,7 @@ def load_model(filepath):
     return model
 
 
-def main(input_folder, output_folder):
+def main(input_folder, output_folder, model_path):
     logging.info("Starting MIDI generation process")
 
     # Check if input folder exists and contains MIDI files

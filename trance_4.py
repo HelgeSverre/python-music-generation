@@ -15,43 +15,50 @@ tempo = mido.bpm2tempo(bpm)
 pygame.mixer.init()
 
 # Define Major and Minor chord intervals with voicings (add 7ths for a richer sound)
-chord_intervals_major = [0, 4, 7, 11]  # (Root, Major 3rd, Perfect 5th, Major 7th)
-chord_intervals_minor = [0, 3, 7, 10]  # (Root, Minor 3rd, Perfect 5th, Minor 7th)
+chord_intervals_major = [0, 4, 7, 11, 14]  # (Root, Major 3rd, Perfect 5th, Major 7th)
+chord_intervals_minor = [0, 3, 7, 10, 14]  # (Root, Minor 3rd, Perfect 5th, Major 7th)
 
-# Predefined chord progressions
+# Predefined chord progressions with uppercase (Major) and lowercase (Minor) notation
 progression_map = {
-    "I": 0,
-    "ii": 2,
-    "iii": 4,
-    "IV": 5,
-    "V": 7,
-    "vi": 9,
-    "vii°": 11,
+    "I": 0,  # Major 1st
+    "ii": 2,  # Minor 2nd
+    "iii": 4,  # Minor 3rd
+    "IV": 5,  # Major 4th
+    "V": 7,  # Major 5th
+    "vi": 9,  # Minor 6th
+    "vii°": 11,  # Diminished 7th
 }
 
-# Some common progressions
+# Some common progressions (uppercase for major, lowercase for minor)
 predefined_progressions = {
     "classic_pop": "I-V-vi-IV",
-    "ballad": "I-vi-IV-V",
-    "pachelbel": "I-V-vi-iii-IV-I-IV-V",
+    # "ballad": "I-vi-IV-V",
+    # "pachelbel": "I-V-vi-iii-IV-I-IV-V",
     "axis_of_awesome": "I-V-vi-IV",
     "bold_uplifting": "i-III-VII-VI",
-    "subtle_tension": "I-V6-vi-V",
-    "unique_tension": "IV-I6-ii",
+    "subtle_tension": "I-V-vi-V",
+    # "unique_tension": "IV-I-ii",
     "unusual_vi_start": "vi-V-IV-V",
     "classic_minor": "i-VI-III-VII",
 }
 
 
-def generate_progressions_from_string(root_note, progression_str, mode="major"):
+def generate_progressions_from_string(root_note, progression_str):
     """Generate a progression based on a string like 'I-V-vi-iii-IV'."""
-    intervals = chord_intervals_major if mode == "major" else chord_intervals_minor
     progression = []
     bassline_root_notes = []
 
     # Split the progression string and generate chords
     for symbol in progression_str.split("-"):
         degree = progression_map[symbol]
+
+        # Determine whether the chord is major or minor based on its case
+        if symbol.isupper():
+            intervals = chord_intervals_major  # Major chord
+        else:
+            intervals = chord_intervals_minor  # Minor chord
+
+        # Generate the chord with appropriate intervals
         chord = [root_note + degree + i for i in intervals]
         progression.append(chord)
         bassline_root_notes.append(root_note + degree)
@@ -185,6 +192,8 @@ if __name__ == "__main__":
 
     # Pick from the list of keys
     root_note = random.choice(list(keys.values()))
+
+    print(f"Using root note: {root_note}")
 
     # Choose a predefined progression or create a custom one
     progression_choice = random.choice(list(predefined_progressions.keys()))

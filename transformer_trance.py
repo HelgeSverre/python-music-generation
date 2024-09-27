@@ -30,7 +30,7 @@ def preprocess_midi(file_path):
     return notes
 
 
-def create_sequences(notes, sequence_length=100):
+def create_sequences(notes, sequence_length=500):
     logging.debug(f"Creating sequences with length {sequence_length}")
     # Create input sequences and corresponding outputs
     input_sequences = []
@@ -234,8 +234,10 @@ def generate_midi(
 
 def save_model(model, filepath):
     """Save the trained model to a file."""
-    model.save(filepath)
-    logging.info(f"Model saved to {filepath}")
+    path = get_unique_filename(filepath)
+
+    model.save(path)
+    logging.info(f"Model saved to {path}")
 
 
 def load_model(filepath):
@@ -263,6 +265,10 @@ def main(input_folder, output_folder, model_path):
     # Load and preprocess MIDI files
     all_notes = []
     for file in midi_files:
+
+        if not "Arp_" in file:
+            continue
+
         try:
             notes = preprocess_midi(file)
             all_notes.extend(notes)
@@ -313,7 +319,7 @@ def main(input_folder, output_folder, model_path):
         try:
             model = build_transformer(vocab_size)
             logging.info("Model built. Starting training...")
-            history = model.fit(X, y, batch_size=256, epochs=50, verbose=1)
+            history = model.fit(X, y, batch_size=256, epochs=5, verbose=1)
             logging.info("Model training completed")
             logging.debug(
                 f"Final training accuracy: {history.history['accuracy'][-1]:.4f}"
@@ -336,9 +342,7 @@ def main(input_folder, output_folder, model_path):
         if not os.path.exists(output_folder):
             os.makedirs(output_folder)
 
-        base_output_file = os.path.join(
-            output_folder, "generated_trance_transformer.mid"
-        )
+        base_output_file = os.path.join(output_folder, "trance_midi_generator.mid")
         output_file = get_unique_filename(base_output_file)
         generated_stream.write("midi", fp=output_file)
         logging.info(f"Generated MIDI saved to {output_file}")
@@ -348,7 +352,7 @@ def main(input_folder, output_folder, model_path):
 
 
 if __name__ == "__main__":
-    input_folder = "trance_midis"  # Folder containing input MIDI files
-    output_folder = "output"  # Folder to save generated MIDI files
-    model_path = "trance_transformer_model"  # Path to save/load the model
+    input_folder = "trance_midis"
+    output_folder = "output"
+    model_path = "models/trance_midi_generator"
     main(input_folder, output_folder, model_path)

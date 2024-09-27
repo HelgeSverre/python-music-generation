@@ -7,14 +7,9 @@ import tensorflow as tf
 from music21 import converter, instrument, note, chord, stream
 from tensorflow import keras
 
-# Set up logging
-logging.basicConfig(
-    level=logging.DEBUG, format="%(asctime)s - %(levelname)s - %(message)s"
-)
-
 
 def preprocess_midi(file_path):
-    logging.debug(f"Preprocessing MIDI file: {file_path}")
+    print(f"Preprocessing MIDI file: {file_path}")
     # Load the MIDI file
     midi = converter.parse(file_path)
 
@@ -26,12 +21,12 @@ def preprocess_midi(file_path):
         elif isinstance(element, chord.Chord):
             notes.append(".".join(str(n) for n in element.normalOrder))
 
-    logging.debug(f"Extracted {len(notes)} notes/chords from {file_path}")
+    print(f"Extracted {len(notes)} notes/chords from {file_path}")
     return notes
 
 
 def create_sequences(notes, sequence_length=500):
-    logging.debug(f"Creating sequences with length {sequence_length}")
+    print(f"Creating sequences with length {sequence_length}")
     # Create input sequences and corresponding outputs
     input_sequences = []
     output_sequences = []
@@ -39,7 +34,7 @@ def create_sequences(notes, sequence_length=500):
         input_sequences.append(notes[i : i + sequence_length])
         output_sequences.append(notes[i + sequence_length])
 
-    logging.debug(f"Created {len(input_sequences)} input sequences")
+    print(f"Created {len(input_sequences)} input sequences")
     return input_sequences, output_sequences
 
 
@@ -276,7 +271,7 @@ def main(input_folder, output_folder, model_path):
             logging.error(f"Error processing file {file}: {str(e)}")
 
     logging.info(f"Processed {len(midi_files)} MIDI files")
-    logging.debug(f"Total notes extracted: {len(all_notes)}")
+    print(f"Total notes extracted: {len(all_notes)}")
 
     if len(all_notes) == 0:
         logging.error(
@@ -303,7 +298,7 @@ def main(input_folder, output_folder, model_path):
     # Prepare data for training
     X = np.array([[vocab_to_int[note] for note in seq] for seq in input_sequences])
     y = np.array([vocab_to_int[seq] for seq in output_sequences])
-    logging.debug(f"Input shape: {X.shape}, Output shape: {y.shape}")
+    print(f"Input shape: {X.shape}, Output shape: {y.shape}")
 
     if os.path.exists(model_path):
         try:
@@ -321,9 +316,7 @@ def main(input_folder, output_folder, model_path):
             logging.info("Model built. Starting training...")
             history = model.fit(X, y, batch_size=256, epochs=5, verbose=1)
             logging.info("Model training completed")
-            logging.debug(
-                f"Final training accuracy: {history.history['accuracy'][-1]:.4f}"
-            )
+            print(f"Final training accuracy: {history.history['accuracy'][-1]:.4f}")
 
             # Save the trained model
             save_model(model, model_path)
@@ -352,7 +345,7 @@ def main(input_folder, output_folder, model_path):
 
 
 if __name__ == "__main__":
-    input_folder = "trance_midis"
-    output_folder = "output"
-    model_path = "models/trance_midi_generator"
+    input_folder = "../trance_midis"
+    output_folder = "../output/midi"
+    model_path = "../models/trance_midi_generator"
     main(input_folder, output_folder, model_path)

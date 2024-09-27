@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 import pygame
 import time
 
-from utils import get_unique_filename
+from libs.utils import get_unique_filename
 
 # MIDI Settings
 bpm = 138

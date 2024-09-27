@@ -75,7 +75,9 @@ def create_bassline(bassline_root_notes, bars=4):
 
 
 def create_midi(
-    melody, bassline, filename="generated/trance_melody_with_transposed_bassline.mid"
+    melody,
+    bassline,
+    filename="../output/midi/trance_melody_with_transposed_bassline.mid",
 ):
     """Generate MIDI file with the given melody and bassline."""
     mid = MidiFile()

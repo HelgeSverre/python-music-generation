@@ -5,8 +5,8 @@ import matplotlib.pyplot as plt
 import numpy as np
 from colorama import init, Fore, Style
 
+from libs.utils import get_unique_filename
 from pygame_generate import play_midi
-from utils import get_unique_filename
 
 # Initialize colorama
 init(autoreset=True)
@@ -247,7 +247,7 @@ def main():
     bassline = create_bassline(bassline_root_notes, total_beats)
     pad = create_pad(progression, total_beats)
 
-    midi_filename = get_unique_filename("generated/classic_trance.mid")
+    midi_filename = get_unique_filename("../output/midi/classic_trance.mid")
     create_midi(melody, bassline, pad, filename=midi_filename)
     plot_melody_and_bass(melody, bassline, pad)
 

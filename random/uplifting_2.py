@@ -3,8 +3,8 @@ import mido
 from mido import MidiFile, MidiTrack, Message
 from colorama import init, Fore, Style
 
+from libs.utils import get_unique_filename
 from pygame_generate import play_midi
-from src.libs.utils import get_unique_filename
 
 # Initialize colorama
 init(autoreset=True)
@@ -163,7 +163,7 @@ def create_midi(melody_layers, bassline, pad, filename="complex_uplifting_trance
 def main():
     keys = {
         f"{note}{octave}": midi_num
-        for octave in [3, 4]
+        for octave in [3, 4, 5]
         for note, midi_num in zip(
             ["A", "A#", "B", "C", "C#", "D", "D#", "E", "F", "F#", "G", "G#"],
             range(57 + (octave - 3) * 12, 69 + (octave - 3) * 12),
@@ -186,8 +186,7 @@ def main():
     bassline = create_bassline(bassline_root_notes, total_beats)
     pad = create_pad(progression, total_beats)
 
-    path = get_unique_filename("generated/complex_uplifting_trance.mid")
-
+    path = get_unique_filename("../output/midi/complex_uplifting_trance.mid")
     create_midi(melody_layers, bassline, pad, filename=path)
 
     print(

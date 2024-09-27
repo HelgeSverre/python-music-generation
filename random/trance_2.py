@@ -3,7 +3,7 @@ import mido
 from mido import MidiFile, MidiTrack, Message
 import matplotlib.pyplot as plt
 
-from utils import get_unique_filename
+from libs.utils import get_unique_filename
 
 # MIDI Settings
 bpm = 138
@@ -189,8 +189,10 @@ if __name__ == "__main__":
     # Generate a bassline following the root notes of the chosen progression
     bassline = create_bassline(bassline_root_notes, bars=8)
 
+    path = get_unique_filename("../output/midi/randomized_trance_melody.mid")
+
     # Create MIDI file
-    create_midi(melody, bassline)
+    create_midi(melody, bassline, path)
 
     # Plot the melody and bassline
     plot_melody_and_bass(melody, bassline)

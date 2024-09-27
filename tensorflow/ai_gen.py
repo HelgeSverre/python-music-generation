@@ -1,23 +1,25 @@
-import os
 import glob
 import logging
+import os
 import sys
+
 import numpy as np
 import tensorflow as tf
+from music21 import converter, instrument, chord, stream, key
+from music21.note import Note
 from tensorflow import keras
 from tensorflow.keras import layers
-from music21 import converter, instrument, note, chord, stream, pitch, key
-
-# Set up logging
-logging.basicConfig(
-    level=logging.DEBUG, format="%(asctime)s - %(levelname)s - %(message)s"
-)
 
 # Configure TensorFlow to use GPU if available
 physical_devices = tf.config.list_physical_devices("GPU")
 if len(physical_devices) > 0:
-    tf.config.experimental.set_memory_growth(physical_devices[0], True)
-    print("GPU is available")
+    try:
+        tf.config.set_logical_device_configuration(
+            physical_devices[0], [tf.config.LogicalDeviceConfiguration()]
+        )
+        print("GPU is available and memory growth set.")
+    except RuntimeError as e:
+        print(f"Error setting GPU memory growth: {str(e)}")
 else:
     print("No GPU available, using CPU")
 
@@ -29,40 +31,48 @@ LEARNING_RATE = 0.001
 
 
 def is_valid_midi(file_path):
-    with open(file_path, "rb") as file:
-        return file.read(4) == b"MThd"
+    try:
+        with open(file_path, "rb") as file:
+            return file.read(4) == b"MThd"
+    except Exception as e:
+        print(f"Error validating MIDI file {file_path}: {str(e)}")
+        return False
 
 
 def preprocess_midi(file_path):
-    midi = converter.parse(file_path)
-    parts = instrument.partitionByInstrument(midi)
+    try:
+        midi = converter.parse(file_path)
+        parts = instrument.partitionByInstrument(midi)
 
-    data = []
-    for i, part in enumerate(parts):
-        notes_to_parse = part.recurse()
-        for element in notes_to_parse:
-            if isinstance(element, note.Note):
-                data.append(
-                    {
-                        "track": i,
-                        "pitch": element.pitch.midi,
-                        "duration": element.duration.quarterLength,
-                        "offset": element.offset,
-                        "velocity": element.volume.velocity,
-                    }
-                )
-            elif isinstance(element, chord.Chord):
-                for chord_note in element:
+        data = []
+        for i, part in enumerate(parts):
+            notes_to_parse = part.recurse()
+            for element in notes_to_parse:
+                if isinstance(element, Note):
                     data.append(
                         {
                             "track": i,
-                            "pitch": chord_note.pitch.midi,
+                            "pitch": element.pitch.midi,
                             "duration": element.duration.quarterLength,
                             "offset": element.offset,
                             "velocity": element.volume.velocity,
                         }
                     )
-    return data
+                elif isinstance(element, chord.Chord):
+                    for chord_note in element:
+                        data.append(
+                            {
+                                "track": i,
+                                "pitch": chord_note.pitch.midi,
+                                "duration": element.duration.quarterLength,
+                                "offset": element.offset,
+                                "velocity": element.volume.velocity,
+                            }
+                        )
+        return data
+    except Exception as e:
+        print(f"Error processing MIDI file {file_path}: {str(e)}")
+        return []
 
 
 def create_sequences(data, sequence_length):
@@ -75,7 +85,6 @@ def create_sequences(data, sequence_length):
 
 
 def encode_note(note, vocab_size):
-    # Encode pitch, duration, velocity into a single integer
     pitch = note["pitch"]
     duration = min(int(note["duration"] * 4), 15)  # Quantize duration to 16 levels
     velocity = min(int(note["velocity"] / 8), 15)  # Quantize velocity to 16 levels
@@ -191,8 +200,7 @@ class MusicTransformer(keras.Model):
         x = self.embedding(inputs)
         for transformer_block in self.transformer_blocks:
             x = transformer_block(x)
-        # Apply global average pooling to reduce the sequence dimension
-        x = tf.reduce_mean(x, axis=1)
+        x = tf.reduce_mean(x, axis=1)  # Global average pooling
         x = self.mlp(x)
         return x
 
@@ -210,49 +218,48 @@ def create_model(vocab_size):
     )
     optimizer = keras.optimizers.legacy.Adam(learning_rate=LEARNING_RATE)
     model.compile(
-        optimizer=optimizer, loss="categorical_crossentropy", metrics=["accuracy"]
+        optimizer=optimizer,
+        loss="sparse_categorical_crossentropy",
+        metrics=["accuracy"],
     )
     return model
 
 
-def generate_music(model, start_tokens, vocab_size, num_generate, temperature=1.0):
-    start_tokens = [token for token in start_tokens]
-    tokens_generated = []
+def generate_music(
+    model, start_tokens, vocab_size, num_generate, temperature=1.0, top_k=10
+):
+    generated_tokens = []
+    input_sequence = start_tokens.copy()
+
     for _ in range(num_generate):
-        pad_len = SEQUENCE_LENGTH - len(start_tokens)
-        sample_index = len(start_tokens) - 1
-        if pad_len < 0:
-            x = start_tokens[:SEQUENCE_LENGTH]
-            sample_index = SEQUENCE_LENGTH - 1
-        elif pad_len > 0:
-            x = start_tokens + [0] * pad_len
+        pad_len = SEQUENCE_LENGTH - len(input_sequence)
+        if pad_len > 0:
+            input_sequence += [0] * pad_len
         else:
-            x = start_tokens
-        x = np.array([x])
+            input_sequence = input_sequence[-SEQUENCE_LENGTH:]
+
+        x = np.array([input_sequence])
         y = model.predict(x, verbose=0)[0]
         y = y / temperature
-        top_k = 10
         top_indices = np.argsort(y)[-top_k:]
-        res = int(
-            tf.random.categorical(tf.math.log([y[top_indices]]), num_samples=1).numpy()[
-                0
-            ][0]
-        )
-        pred = top_indices[res]
-        tokens_generated.append(pred)
-        start_tokens.append(pred)
-    return tokens_generated
+        choice_index = tf.random.categorical(
+            tf.math.log([y[top_indices]]), num_samples=1
+        ).numpy()[0][0]
+        predicted_token = top_indices[choice_index]
+
+        generated_tokens.append(predicted_token)
+        input_sequence.append(predicted_token)
+
+    return generated_tokens
 
 
 def apply_basic_music_theory(generated_notes, key_signature):
-    # Define the scale based on the key signature
     scale = key_signature.getScale()
     scale_pitches = [p.midi for p in scale.getPitches()]
 
     corrected_notes = []
     for note in generated_notes:
         pitch = note["pitch"]
-        # If the pitch is not in the scale, move it to the nearest scale pitch
         if pitch % 12 not in [p % 12 for p in scale_pitches]:
             nearest_pitch = min(scale_pitches, key=lambda x: abs(x - pitch))
             note["pitch"] = nearest_pitch
@@ -263,13 +270,23 @@ def apply_basic_music_theory(generated_notes, key_signature):
 
 def save_model(model, filepath):
     model.save(filepath)
-    logging.info(f"Model saved to {filepath}")
+    print(f"Model saved to {filepath}")
 
 
 def load_model(filepath):
-    model = tf.keras.models.load_model(filepath)
-    logging.info(f"Model loaded from {filepath}")
-    return model
+    try:
+        model = tf.keras.models.load_model(
+            filepath,
+            custom_objects={
+                "MultiHeadSelfAttention": MultiHeadSelfAttention,
+                "TransformerBlock": TransformerBlock,
+            },
+        )
+        print(f"Model loaded from {filepath}")
+        return model
+    except Exception as e:
+        print(f"Error loading model: {str(e)}")
+        return None
 
 
 def get_unique_filename(base_filename):
@@ -285,57 +302,49 @@ def get_unique_filename(base_filename):
 
 
 def main(input_folder, output_folder, model_path):
-    logging.info("Starting MIDI generation process")
+    print("Starting MIDI generation process")
 
     if not os.path.exists(input_folder):
-        logging.error(f"Input folder '{input_folder}' does not exist.")
+        print(f"Input folder '{input_folder}' does not exist.")
         sys.exit(1)
 
     midi_files = glob.glob(os.path.join(input_folder, "*.mid"))
     if not midi_files:
-        logging.error(
+        print(
             f"No MIDI files found in '{input_folder}'. Please add some MIDI files and try again."
         )
         sys.exit(1)
 
     all_notes = []
     for file in midi_files:
-        try:
-            if not is_valid_midi(file):
-                logging.warning(f"Skipping non-MIDI file: {file}")
-                continue
+        if is_valid_midi(file):
             notes = preprocess_midi(file)
-            all_notes.extend(notes)
-        except Exception as e:
-            logging.error(f"Error processing file {file}: {str(e)}")
+            if notes:
+                all_notes.extend(notes)
+        else:
+            print(f"Skipping non-MIDI file: {file}")
 
-    logging.info(f"Processed {len(midi_files)} MIDI files")
-    logging.debug(f"Total notes extracted: {len(all_notes)}")
-
-    if len(all_notes) == 0:
-        logging.error(
+    if not all_notes:
+        print(
             "No valid notes extracted from MIDI files. Please check your input files."
         )
         sys.exit(1)
 
-    # Create vocabulary
     unique_notes = set(tuple(note.items()) for note in all_notes)
     vocab_size = len(unique_notes)
     note_to_index = {note: i for i, note in enumerate(unique_notes)}
     index_to_note = {i: note for note, i in note_to_index.items()}
 
-    logging.info(f"Vocabulary size: {vocab_size}")
+    print(f"Vocabulary size: {vocab_size}")
 
-    # Create sequences
     input_sequences, output_sequences = create_sequences(all_notes, SEQUENCE_LENGTH)
 
-    if len(input_sequences) == 0:
-        logging.error(
+    if not input_sequences:
+        print(
             "Not enough data to create sequences. Please provide more or longer MIDI files."
         )
         sys.exit(1)
 
-    # Convert to numpy arrays and encode
     X = np.array(
         [
             [note_to_index[tuple(note.items())] for note in seq]
@@ -344,88 +353,46 @@ def main(input_folder, output_folder, model_path):
     )
     y = np.array([note_to_index[tuple(note.items())] for note in output_sequences])
 
-    # One-hot encode the labels
-    y_one_hot = tf.keras.utils.to_categorical(y, num_classes=vocab_size)
-
-    logging.debug(f"Input shape: {X.shape}, Output shape: {y_one_hot.shape}")
-
     if os.path.exists(model_path):
-        try:
-            model = load_model(model_path)
-            logging.info("Loaded existing model.")
-        except Exception as e:
-            logging.error(f"Error loading model: {str(e)}. Will train a new model.")
-            model = None
+        model = load_model(model_path)
     else:
-        model = None
-
-    if model is None:
-        try:
-            model = create_model(vocab_size)
-            logging.info("Model built. Starting training...")
-            history = model.fit(
-                X,
-                y_one_hot,
-                batch_size=BATCH_SIZE,
-                epochs=EPOCHS,
-                validation_split=0.1,
-                verbose=1,
-            )
-            logging.info("Model training completed")
-            logging.debug(
-                f"Final training accuracy: {history.history['accuracy'][-1]:.4f}"
-            )
-
-            # Save the trained model
-            save_model(model, model_path)
-        except Exception as e:
-            logging.error(f"Error during model building or training: {str(e)}")
-            sys.exit(1)
-
-    try:
-        # Generate new music
-        seed_sequence = X[np.random.randint(0, len(X))]
-        generated_indices = generate_music(model, seed_sequence, vocab_size, 500)
-        generated_notes = [dict(index_to_note[idx]) for idx in generated_indices]
-
-        # Apply basic music theory (assuming C major for simplicity)
-        key_signature = key.Key("C")
-        corrected_notes = apply_basic_music_theory(generated_notes, key_signature)
-
-        # Convert generated notes to a music21 stream
-        output_stream = stream.Stream()
-        for note_data in corrected_notes:
-            if isinstance(note_data["pitch"], list):
-                # It's a chord
-                chord_notes = [note.Note(pitch=p) for p in note_data["pitch"]]
-                c = chord.Chord(chord_notes)
-                c.duration.quarterLength = note_data["duration"]
-                c.duration.quarterLength = note_data["duration"]
-                c.volume.velocity = note_data["velocity"]
-                output_stream.append(c)
-            else:
-                # It's a single note
-                n = note.Note(pitch=note_data["pitch"])
-                n.duration.quarterLength = note_data["duration"]
-                n.volume.velocity = note_data["velocity"]
-                output_stream.append(n)
-
-        # Save the generated MIDI
-        if not os.path.exists(output_folder):
-            os.makedirs(output_folder)
-        base_output_file = os.path.join(
-            output_folder, "generated_trance_transformer.mid"
+        model = create_model(vocab_size)
+        history = model.fit(
+            X, y, batch_size=BATCH_SIZE, epochs=EPOCHS, validation_split=0.1, verbose=1
         )
-        output_file = get_unique_filename(base_output_file)
-        output_stream.write("midi", fp=output_file)
-        logging.info(f"Generated MIDI saved to {output_file}")
-    except Exception as e:
-        logging.error(f"Error during MIDI generation or saving: {str(e)}")
-        sys.exit(1)
+        save_model(model, model_path)
+
+    seed_sequence = X[np.random.randint(0, len(X))]
+    generated_indices = generate_music(model, seed_sequence, vocab_size, 500)
+    generated_notes = [dict(index_to_note[idx]) for idx in generated_indices]
+
+    key_signature = key.Key("C")
+    corrected_notes = apply_basic_music_theory(generated_notes, key_signature)
+
+    output_stream = stream.Stream()
+    for note_data in corrected_notes:
+        if isinstance(note_data["pitch"], list):
+            chord_notes = [Note(pitch=p) for p in note_data["pitch"]]
+            c = chord.Chord(chord_notes)
+            c.duration.quarterLength = note_data["duration"]
+            c.volume.velocity = note_data["velocity"]
+            output_stream.append(c)
+        else:
+            n = Note(pitch=note_data["pitch"])
+            n.duration.quarterLength = note_data["duration"]
+            n.volume.velocity = note_data["velocity"]
+            output_stream.append(n)
+
+    if not os.path.exists(output_folder):
+        os.makedirs(output_folder)
+    output_file = get_unique_filename(os.path.join(output_folder, "ai_gen.mid"))
+    output_stream.write("midi", fp=output_file)
+    print(f"Generated MIDI saved to {output_file}")
 
 
 if __name__ == "__main__":
-    input_folder = "trance_midis"  # Folder containing input MIDI files
-    output_folder = "output"  # Folder to save generated MIDI files
-    model_path = "trance_transformer_model"  # Path to save/load the model
+    input_folder = "../trance_midis"
+    output_folder = "../output/midi"
+    model_path = "../models/ai_gen"
+
     main(input_folder, output_folder, model_path)

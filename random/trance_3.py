@@ -6,7 +6,8 @@ import pygame
 import time
 
 from colorama import init, Fore, Style
-from utils import get_unique_filename
+
+from libs.utils import get_unique_filename
 
 # Initialize colorama
 init(autoreset=True)
@@ -236,8 +237,8 @@ if __name__ == "__main__":
     plot_melody_and_bass(melody, bassline)
 
     # Save the MIDI file
-    midi_filename = get_unique_filename("generated/trance_3.mid")
+    midi_filename = get_unique_filename("../output/midi/trance_3.mid")
     create_midi(melody, bassline, filename=midi_filename)
 
     # Play the saved MIDI file
-    # play_midi(midi_filename)
+    play_midi(midi_filename)

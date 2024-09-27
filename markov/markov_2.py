@@ -77,7 +77,7 @@ class MarkovMIDIGenerator:
 
         current_time = 0
         for i in range(len(sequence)):
-            key = tuple(sequence[max(0, i - 2): i])
+            key = tuple(sequence[max(0, i - 2) : i])
             note = sequence[i]
             # if key in self.note_properties:
             #     time, velocity = random.choice(self.note_properties[key])
@@ -132,13 +132,23 @@ class MarkovMIDIGenerator:
 
         for key, next_notes in self.model.items():
             print(key, next_notes)
-            top_transitions = sorted(next_notes.items(), key=lambda x: x[1], reverse=True)[:top_n]
+            top_transitions = sorted(
+                next_notes.items(), key=lambda x: x[1], reverse=True
+            )[:top_n]
             for next_note, weight in top_transitions:
                 G.add_edge(key, next_note, weight=weight)
 
         pos = nx.spring_layout(G)
         plt.figure(figsize=(12, 8))
-        nx.draw(G, pos, with_labels=True, node_color="skyblue", node_size=1500, edge_color="gray", arrows=True)
+        nx.draw(
+            G,
+            pos,
+            with_labels=True,
+            node_color="skyblue",
+            node_size=1500,
+            edge_color="gray",
+            arrows=True,
+        )
 
         edge_labels = {(k, v): d["weight"] for k, v, d in G.edges(data=True)}
         nx.draw_networkx_edge_labels(G, pos, edge_labels=edge_labels)
@@ -149,7 +159,10 @@ class MarkovMIDIGenerator:
     def create_transition_heatmap(self, top_n=100):
         """Create a heatmap of transition probabilities for the top N most common states."""
         # Get the top N most common states
-        state_counts = {state: sum(transitions.values()) for state, transitions in self.model.items()}
+        state_counts = {
+            state: sum(transitions.values())
+            for state, transitions in self.model.items()
+        }
         top_states = sorted(state_counts, key=state_counts.get, reverse=True)[:top_n]
 
         # Create a matrix of transition probabilities
@@ -157,11 +170,19 @@ class MarkovMIDIGenerator:
         for i, state in enumerate(top_states):
             total = sum(self.model[state].values())
             for j, next_state in enumerate(top_states):
-                matrix[i, j] = self.model[state].get(next_state, 0) / total if total else 0
+                matrix[i, j] = (
+                    self.model[state].get(next_state, 0) / total if total else 0
+                )
 
         # Create the heatmap
         plt.figure(figsize=(12, 10))
-        sns.heatmap(matrix, annot=True, fmt='.2f', xticklabels=top_states, yticklabels=top_states)
+        sns.heatmap(
+            matrix,
+            annot=True,
+            fmt=".2f",
+            xticklabels=top_states,
+            yticklabels=top_states,
+        )
         plt.title(f"Transition Probabilities for Top {top_n} States")
         plt.xlabel("Next State")
         plt.ylabel("Current State")
@@ -174,7 +195,9 @@ class MarkovMIDIGenerator:
 
         for state, transitions in self.model.items():
             print(f"\nState: {state}")
-            sorted_transitions = sorted(transitions.items(), key=lambda x: x[1], reverse=True)
+            sorted_transitions = sorted(
+                transitions.items(), key=lambda x: x[1], reverse=True
+            )
             for next_note, count in sorted_transitions[:top_n]:
                 print(f"  → {next_note}: {count}")
 
@@ -187,26 +210,26 @@ class MarkovMIDIGenerator:
 
 
 if __name__ == "__main__":
-    windows = "D:\\Samples\\001 - MIDI\\Hardstyle midis 2009"
-    mac = "trance_midis/"
+    folder = "../trance_midis/"
+    # folder = "D:\\Samples\\001 - MIDI\\Hardstyle midis 2009"
 
     generator = MarkovMIDIGenerator()
 
     # Example usage of loading and saving models
-    model_path = get_unique_filename("../output/markov_models/hardstyle.json")
-    old = "../output/markov_models/hardstyle.json"
+    model_path = get_unique_filename("../output/markov_models/markov_2.json")
+    old = "../output/markov_models/markov_2.json"
 
-    generator.load_model(old)
-    generator.summarize_model()
+    # generator.load_model(old)
+    # generator.summarize_model()
     # generator.visualize_markov_chain()
     # generator.create_transition_heatmap()
-    exit()
+    # exit()
 
     # Load model if it exists, otherwise analyze folder and save the model
     if os.path.exists(model_path):
         generator.load_model(model_path)
     else:
-        generator.analyze_midi_folder(windows)
+        generator.analyze_midi_folder(folder)
         if generator.model:
             generator.save_model(model_path)
 

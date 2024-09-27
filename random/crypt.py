@@ -1,7 +1,7 @@
 import random
 from midiutil import MIDIFile
 
-from utils import get_unique_filename
+from libs.utils import get_unique_filename
 
 
 class MusicalCryptographer:
@@ -39,7 +39,7 @@ class MusicalCryptographer:
                 decrypted += self.note_to_char[(note, octave)]
         return decrypted
 
-    def create_midi(self, encrypted, filename="encrypted_message.mid"):
+    def create_midi(self, encrypted, filename="../output/midi/encrypted_message.mid"):
         midi = MIDIFile(1)
         track = 0
         time = 0

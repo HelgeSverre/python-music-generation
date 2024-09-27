@@ -3,7 +3,8 @@ import mido
 from mido import MidiFile, MidiTrack, Message
 import pygame
 import time
-from utils import get_unique_filename
+
+from libs.utils import get_unique_filename
 
 # MIDI Settings
 bpm = 138
@@ -201,7 +202,7 @@ if __name__ == "__main__":
     bassline = create_fixed_bassline(bassline_root_notes, bars=8)
 
     # Save the MIDI file
-    midi_filename = get_unique_filename("generated/pygame.mid")
+    midi_filename = get_unique_filename("../output/midi/pygame_minor.mid")
     create_midi(melody, bassline, filename=midi_filename)
 
     # Play the saved MIDI file

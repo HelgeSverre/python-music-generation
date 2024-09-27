@@ -3,7 +3,6 @@ import mido
 from mido import MidiFile, MidiTrack, Message
 import pygame
 import time
-from utils import get_unique_filename
 
 # MIDI Settings
 bpm = 138

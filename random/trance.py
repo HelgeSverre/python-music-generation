@@ -74,9 +74,7 @@ def create_bassline(bassline_root_notes, bars=4):
     return bassline
 
 
-def create_midi(
-    melody, bassline, filename="generated/trance_melody_with_dynamic_harmony.mid"
-):
+def create_midi(melody, bassline, filename):
     """Generate MIDI file with the given melody and bassline."""
     mid = MidiFile()
 
@@ -153,7 +151,7 @@ if __name__ == "__main__":
     bassline = create_bassline(bassline_root_notes, bars=8)
 
     # Create MIDI file
-    create_midi(melody, bassline)
+    create_midi(melody, bassline, filename="../output/midi/trance_dynamic_harmony.mid")
 
     # Plot the melody and bassline
-    # plot_melody_and_bass(melody, bassline)
+    plot_melody_and_bass(melody, bassline)

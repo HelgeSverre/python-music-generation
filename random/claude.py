@@ -127,7 +127,7 @@ def visualize_melody(melody, bassline, chord_prog):
     plt.ylabel("MIDI Note")
     plt.legend()
     plt.grid(True)
-    plt.savefig("generated/advanced_trance_visualization.png")
+    plt.savefig("../output/images/advanced_trance_visualization.png")
     plt.close()
 
 
@@ -157,15 +157,9 @@ def main():
         full_melody,
         full_bassline,
         full_progression,
-        "generated/advanced_trance_melody_2.mid",
+        "../output/midi/advanced_trance_visualization.mid",
     )
     visualize_melody(full_melody, full_bassline, full_progression)
-    print(
-        "Advanced trance melody generated and saved as 'generated/advanced_trance_melody.mid'"
-    )
-    print(
-        "Advanced melody visualization saved as 'generated/advanced_trance_visualization.png'"
-    )
 
 
 if __name__ == "__main__":

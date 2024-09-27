@@ -3,8 +3,7 @@ import mido
 from mido import MidiFile, MidiTrack, Message
 from colorama import init, Fore, Style
 
-from trance_4 import play_midi
-from utils import get_unique_filename
+from libs.utils import get_unique_filename
 
 # Initialize colorama
 init(autoreset=True)
@@ -155,7 +154,7 @@ def main():
 
     melody, chords, bass = create_melody_and_chords(progression, total_bars)
 
-    path = get_unique_filename("generated/uplifting_trance_arpeggio_adjusted.mid")
+    path = get_unique_filename("../output/midi/uplifting_trance_arpeggio_adjusted.mid")
 
     create_midi(melody, chords, bass, filename=path)
 
@@ -165,8 +164,6 @@ def main():
         + "Uplifting trance arpeggio pattern generated successfully!"
     )
     print(Fore.YELLOW + "MIDI file: uplifting_trance_arpeggio_adjusted.mid")
-
-    play_midi(path)
 
 
 if __name__ == "__main__":

@@ -3,8 +3,7 @@ import mido
 from mido import MidiFile, MidiTrack, Message
 from colorama import init, Fore, Style
 
-from pygame_generate import play_midi
-from utils import get_unique_filename
+from libs.utils import get_unique_filename
 
 # Initialize colorama
 init(autoreset=True)
@@ -203,14 +202,12 @@ def main():
     bassline = create_bassline(bassline_root_notes, total_beats)
     pad = create_pad(progression, total_beats)
 
-    path = get_unique_filename("generated/uplifting_trance_melody.mid")
+    path = get_unique_filename("../output/midi/uplifting_trance_melody.mid")
 
     create_midi(melody, bassline, pad, filename=path)
 
     print(Fore.GREEN + Style.BRIGHT + "Uplifting trance melody generated successfully!")
     print(Fore.YELLOW + "MIDI file: uplifting_trance_melody.mid")
-
-    # play_midi(path)
 
 
 if __name__ == "__main__":

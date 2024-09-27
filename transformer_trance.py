@@ -266,7 +266,7 @@ def main(input_folder, output_folder, model_path):
     all_notes = []
     for file in midi_files:
 
-        if not "Arp_" in file:
+        if not "Cosmic Gate" in file:
             continue
 
         try:

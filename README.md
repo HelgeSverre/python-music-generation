@@ -17,7 +17,7 @@ pip install -r requirements.txt
 
 ```shell
 python -m venv venv
-source venv/bin/activate
+source .venv/bin/activate
 
 ## AI Generated - ChatGPT
 python main.py

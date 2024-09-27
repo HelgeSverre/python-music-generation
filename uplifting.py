@@ -1,8 +1,6 @@
 import random
 import mido
 from mido import MidiFile, MidiTrack, Message
-import matplotlib.pyplot as plt
-import numpy as np
 from colorama import init, Fore, Style
 
 from pygame_generate import play_midi
@@ -33,8 +31,6 @@ TRANCE_PROGRESSIONS = {
     "melancholic_trance": "i-v-VI-iv",
     "driving_trance": "i-VII-VI-V",
     "euphoric_trance": "i-III-IV-VI",
-    "dark_trance": "i-v-VI-VII",
-    "progressive_trance": "i-VI-v-IV",
 }
 
 PROGRESSION_MAP = {
@@ -73,40 +69,36 @@ def generate_progressions_from_string(root_note, progression_str):
     return progression, bassline_root_notes
 
 
-def generate_motif_from_chord(chord, scale, length=8):
-    print(Fore.CYAN + f"Generating motif from chord: {chord}")
-    return [random.choice(chord + scale) for _ in range(length)]
+def create_uplifting_arpeggio(chord, octave_range=2):
+    """Create an uplifting trance arpeggio pattern based on the 12342314 sequence."""
+    base_note = min(chord)
+    arpeggio_pattern = [0, 1, 2, 3, 2, 1, 3]  # Represents the 12342314 pattern
+    full_arpeggio = []
+
+    for octave in range(octave_range):
+        for step in arpeggio_pattern:
+            note = base_note + step + (octave * 12)
+            full_arpeggio.append(note)
+
+    return full_arpeggio
 
 
-def apply_variation(motif, variation_type="transpose"):
-    print(Fore.YELLOW + f"Applying {variation_type} variation to motif: {motif}")
-
-    if variation_type == "transpose":
-        interval = random.choice([-2, -1, 1, 2])
-        return [(note + interval) for note in motif]
-    elif variation_type == "invert":
-        first_note = motif[0]
-        return [(first_note - (note - first_note)) for note in motif]
-    elif variation_type == "reverse":
-        return motif[::-1]
-    elif variation_type == "rhythmic":
-        return [note if random.random() > 0.3 else 0 for note in motif]
-    else:
-        return motif
-
-
-def create_melody_from_progression(progression, scale, total_beats):
+def create_melody_from_progression(progression, total_beats):
     melody = []
-    print(Fore.MAGENTA + f"Creating melody from progression: {progression}")
+    print(
+        Fore.MAGENTA
+        + f"Creating uplifting trance melody from progression: {progression}"
+    )
+
+    arpeggio_length = 8  # 8 sixteenth notes for one complete 12342314 pattern
+
     while len(melody) < total_beats:
         chord = progression[len(melody) // 32 % len(progression)]
-        motif = generate_motif_from_chord(chord, scale)
-        if len(melody) > 0:
-            variation_type = random.choice(
-                ["transpose", "invert", "reverse", "rhythmic", "none"]
-            )
-            motif = apply_variation(motif, variation_type=variation_type)
-        melody.extend(motif)
+        arpeggio = create_uplifting_arpeggio(chord)
+
+        # Repeat the arpeggio pattern for the duration of the chord (usually 1 bar)
+        for _ in range(32 // arpeggio_length):
+            melody.extend(arpeggio)
 
     return melody[:total_beats]  # Trim to exact length if necessary
 
@@ -131,13 +123,13 @@ def create_bassline(bassline_root_notes, total_beats):
 def create_pad(progression, total_beats):
     print(Fore.LIGHTMAGENTA_EX + "Creating pad...")
     pad = []
-    while len(pad) * 8 < total_beats:
+    while len(pad) * 32 < total_beats:
         chord = progression[len(pad) % len(progression)]
-        pad.append(chord)
-    return pad
+        pad.extend([chord] * 32)  # Hold each chord for a full bar
+    return pad[:total_beats]
 
 
-def create_midi(melody, bassline, pad, filename="classic_trance_melody.mid"):
+def create_midi(melody, bassline, pad, filename="uplifting_trance_melody.mid"):
     mid = MidiFile()
     print(Fore.LIGHTBLUE_EX + "Creating MIDI file...")
 
@@ -147,15 +139,10 @@ def create_midi(melody, bassline, pad, filename="classic_trance_melody.mid"):
     melody_track.append(mido.MetaMessage("set_tempo", tempo=TEMPO))
 
     for note in melody:
-        if note > 0:
-            melody_track.append(Message("note_on", note=note, velocity=64, time=0))
-            melody_track.append(
-                Message("note_off", note=note, velocity=64, time=NOTE_LENGTH_IN_TICKS)
-            )
-        else:
-            melody_track.append(
-                Message("note_off", note=0, velocity=0, time=NOTE_LENGTH_IN_TICKS)
-            )
+        melody_track.append(Message("note_on", note=note, velocity=64, time=0))
+        melody_track.append(
+            Message("note_off", note=note, velocity=64, time=NOTE_LENGTH_IN_TICKS)
+        )
 
     # Bassline track
     bassline_track = MidiTrack()
@@ -182,37 +169,12 @@ def create_midi(melody, bassline, pad, filename="classic_trance_melody.mid"):
         for note in chord:
             pad_track.append(
                 Message(
-                    "note_off", note=note, velocity=40, time=NOTE_LENGTH_IN_TICKS * 8
+                    "note_off", note=note, velocity=40, time=NOTE_LENGTH_IN_TICKS * 32
                 )
             )
 
     mid.save(filename)
     print(Fore.GREEN + Style.BRIGHT + f"MIDI file saved as {filename}")
-
-
-def plot_melody_and_bass(melody, bassline, pad):
-    print(Fore.LIGHTWHITE_EX + "Plotting melody, bassline, and pad...")
-    time_stamps = np.arange(len(melody)) * 0.25  # 16th notes time stamps
-    plt.figure(figsize=(15, 8))
-
-    plt.step(
-        time_stamps, melody, where="mid", label="Trance Melody", marker="o", alpha=0.7
-    )
-    plt.step(
-        time_stamps, bassline, where="mid", label="Bassline", marker="x", alpha=0.7
-    )
-
-    pad_notes = [note for chord in pad for note in chord]
-    pad_times = np.repeat(np.arange(0, len(pad) * 2, 2), 3)
-    plt.scatter(pad_times, pad_notes, label="Pad", alpha=0.3, s=50)
-
-    plt.xlabel("Beats")
-    plt.ylabel("MIDI Note")
-    plt.title("Classic Trance Melody with Bassline and Pad")
-    plt.grid(True, alpha=0.3)
-    plt.legend()
-    plt.savefig("classic_trance_visualization.png")
-    plt.close()
 
 
 def main():
@@ -233,29 +195,22 @@ def main():
     progression, bassline_root_notes = generate_progressions_from_string(
         root_note, progression_str
     )
-    scale = [
-        root_note + interval
-        for interval in random.choice(
-            [MINOR_SCALE, HARMONIC_MINOR_SCALE, MELODIC_MINOR_SCALE]
-        )
-    ]
 
     total_bars = 32  # A typical length for a trance section
     total_beats = total_bars * 8  # 8 sixteenth notes per bar
 
-    melody = create_melody_from_progression(progression, scale, total_beats)
+    melody = create_melody_from_progression(progression, total_beats)
     bassline = create_bassline(bassline_root_notes, total_beats)
     pad = create_pad(progression, total_beats)
 
-    midi_filename = get_unique_filename("generated/classic_trance.mid")
-    create_midi(melody, bassline, pad, filename=midi_filename)
-    plot_melody_and_bass(melody, bassline, pad)
+    path = get_unique_filename("generated/uplifting_trance_melody.mid")
 
-    print(Fore.GREEN + Style.BRIGHT + "Classic trance melody generated successfully!")
-    print(Fore.YELLOW + f"MIDI file: {midi_filename}")
-    print(Fore.YELLOW + "Visualization: classic_trance_visualization.png")
+    create_midi(melody, bassline, pad, filename=path)
 
-    play_midi(midi_filename)
+    print(Fore.GREEN + Style.BRIGHT + "Uplifting trance melody generated successfully!")
+    print(Fore.YELLOW + "MIDI file: uplifting_trance_melody.mid")
+
+    # play_midi(path)
 
 
 if __name__ == "__main__":

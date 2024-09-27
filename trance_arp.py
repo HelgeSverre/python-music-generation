@@ -41,7 +41,10 @@ def generate_progression(root_note, progression_type):
     return progression
 
 
-def create_arpeggio_pattern(chord, pattern=[0, 1, 2, 0, 2, 1]):
+def create_arpeggio_pattern(chord, pattern=[0, 1, 2, 1, 0, 2], variation=False):
+    if variation:
+        # Alternate arpeggio pattern for variation
+        return [chord[i] for i in [0, 2, 1, 2, 3, 1]]
     return [chord[i] for i in pattern]
 
 
@@ -49,21 +52,30 @@ def create_melody_and_chords(progression, total_bars):
     melody = []
     chords = []
     bass = []
-    arp_pattern = [0, 1, 2, 0, 2, 1]
+    arp_pattern = [0, 1, 2, 1, 0, 2]
+    bass_rhythm = [1, 0, 1, 0, 1, 0, 1, 0]  # Simple syncopation for bassline
 
     for bar in range(total_bars):
         chord = progression[bar % len(progression)]
-        bass_note = chord[0] - 12  # Root note, one octave lower
+        bass_note = chord[0] + 36  # C3 (MIDI note 48) + chord root
 
-        # Create bassline
-        bass.extend([bass_note] + [0] * 15)  # One bass note per bar
+        # Bassline with syncopation and octave jumps
+        for i in bass_rhythm:
+            if i:
+                bass.extend([bass_note, bass_note + 12])  # Octave jumps
+            else:
+                bass.extend([0, 0])
 
-        # Create chord arpeggio
-        bar_arpeggio = create_arpeggio_pattern(chord, arp_pattern)
-        melody.extend(bar_arpeggio * 8)  # Repeat the pattern 8 times to fill the bar
+        # Create chord arpeggio (vary the pattern every 8 bars)
+        arp_chord = [note + 60 for note in chord]  # Move chord up 2 octaves
+        bar_arpeggio = create_arpeggio_pattern(
+            arp_chord, arp_pattern, variation=bar % 8 == 0
+        )
+        melody.extend(bar_arpeggio * 8)  # Repeat the pattern to fill the bar
 
-        # Add full chord for pad
-        chords.extend([chord] * 16)  # Hold chord for entire bar
+        # Add full chord for pad (1 octave above bass)
+        pad_chord = [note + 48 for note in chord]  # Move chord up 1 octave
+        chords.extend([pad_chord] * 16)  # Hold chord for entire bar
 
     return melody, chords, bass
 
@@ -79,9 +91,14 @@ def create_midi(melody, chords, bass, filename="uplifting_trance_arpeggio.mid"):
 
     for note in melody:
         if note > 0:
-            melody_track.append(Message("note_on", note=note, velocity=64, time=0))
+            velocity = random.randint(60, 80)  # Vary melody note velocity for dynamics
             melody_track.append(
-                Message("note_off", note=note, velocity=64, time=NOTE_LENGTH_IN_TICKS)
+                Message("note_on", note=note, velocity=velocity, time=0)
+            )
+            melody_track.append(
+                Message(
+                    "note_off", note=note, velocity=velocity, time=NOTE_LENGTH_IN_TICKS
+                )
             )
         else:
             melody_track.append(
@@ -93,10 +110,15 @@ def create_midi(melody, chords, bass, filename="uplifting_trance_arpeggio.mid"):
     mid.tracks.append(bass_track)
     for note in bass:
         if note > 0:
-            bass_track.append(Message("note_on", note=note, velocity=80, time=0))
+            velocity = random.randint(70, 90)  # More variation in bass velocity
+            bass_track.append(Message("note_on", note=note, velocity=velocity, time=0))
             bass_track.append(
                 Message(
-                    "note_off", note=note, velocity=80, time=NOTE_LENGTH_IN_TICKS * 16
+                    "note_off",
+                    note=note,
+                    velocity=velocity,
+                    time=NOTE_LENGTH_IN_TICKS * 8,
+                    # Shorten bass note length for rhythm
                 )
             )
         else:
@@ -109,11 +131,15 @@ def create_midi(melody, chords, bass, filename="uplifting_trance_arpeggio.mid"):
     mid.tracks.append(chord_track)
     for chord in chords:
         for note in chord:
-            chord_track.append(Message("note_on", note=note, velocity=40, time=0))
+            velocity = random.randint(40, 60)  # Add slight dynamics to pad chords
+            chord_track.append(Message("note_on", note=note, velocity=velocity, time=0))
         for note in chord:
             chord_track.append(
                 Message(
-                    "note_off", note=note, velocity=40, time=NOTE_LENGTH_IN_TICKS * 16
+                    "note_off",
+                    note=note,
+                    velocity=velocity,
+                    time=NOTE_LENGTH_IN_TICKS * 16,
                 )
             )
 

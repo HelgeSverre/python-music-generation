@@ -1,15 +1,9 @@
 import random
 import mido
 from mido import MidiFile, MidiTrack, Message
-import matplotlib.pyplot as plt
 import pygame
 import time
-
-from colorama import init, Fore, Style
 from utils import get_unique_filename
-
-# Initialize colorama
-init(autoreset=True)
 
 # MIDI Settings
 bpm = 138
@@ -20,9 +14,9 @@ tempo = mido.bpm2tempo(bpm)
 # Initialize pygame mixer for MIDI playback
 pygame.mixer.init()
 
-# Define Major and Minor chord intervals
-chord_intervals_major = [0, 4, 7]  # (Root, Major 3rd, Perfect 5th)
-chord_intervals_minor = [0, 3, 7]  # (Root, Minor 3rd, Perfect 5th)
+# Define Major and Minor chord intervals with voicings (add 7ths for a richer sound)
+chord_intervals_major = [0, 4, 7, 11]  # (Root, Major 3rd, Perfect 5th, Major 7th)
+chord_intervals_minor = [0, 3, 7, 10]  # (Root, Minor 3rd, Perfect 5th, Minor 7th)
 
 # Predefined chord progressions
 progression_map = {
@@ -40,16 +34,10 @@ predefined_progressions = {
     "classic_pop": "I-V-vi-IV",
     "ballad": "I-vi-IV-V",
     "pachelbel": "I-V-vi-iii-IV-I-IV-V",
-    "blues": "I-IV-V",
     "axis_of_awesome": "I-V-vi-IV",
-    "popular_combination": "I-IV-vi-V",
-    "epic_hits": "I-vi-IV-V",
-    "dramatic_minor_major": "i-VII-III-VI",
-    "twist_on_classic_minor": "i-V-vi-IV",
     "bold_uplifting": "i-III-VII-VI",
-    "classic_twist_with_iii": "I-V-vi-iii-IV",
-    "subtle_tension": "I-V-vi-V",
-    "unique_tension": "IV-I-ii",
+    "subtle_tension": "I-V6-vi-V",
+    "unique_tension": "IV-I6-ii",
     "unusual_vi_start": "vi-V-IV-V",
     "classic_minor": "i-VI-III-VII",
 }
@@ -61,8 +49,6 @@ def generate_progressions_from_string(root_note, progression_str, mode="major"):
     progression = []
     bassline_root_notes = []
 
-    print(Fore.GREEN + f"Generating progression: {progression_str}")
-
     # Split the progression string and generate chords
     for symbol in progression_str.split("-"):
         degree = progression_map[symbol]
@@ -73,58 +59,69 @@ def generate_progressions_from_string(root_note, progression_str, mode="major"):
     return progression, bassline_root_notes
 
 
-def generate_motif_from_chord(chord, length=8):
-    """Generate a simple motif based on the notes of the given chord."""
-    print(Fore.CYAN + f"Generating motif from chord: {chord}")
-    return [random.choice(chord) for _ in range(length)]
-
-
-def apply_variation(motif, variation_type="transpose"):
-    """Apply a variation to the motif."""
-    print(Fore.YELLOW + f"Applying {variation_type} variation to motif: {motif}")
-
-    if variation_type == "transpose":
-        interval = random.choice([-2, -1, 0, 1, 2])
-        return [(note + interval) for note in motif]
-    elif variation_type == "invert":
-        first_note = motif[0]
-        return [(first_note - (note - first_note)) for note in motif]
+def generate_arpeggio_from_chord(chord, pattern="ascending", length=16):
+    """Generate an arpeggio from the given chord using a fixed pattern."""
+    if pattern == "ascending":
+        return [chord[i % len(chord)] for i in range(length)]
+    elif pattern == "descending":
+        return [chord[len(chord) - (i % len(chord)) - 1] for i in range(length)]
+    elif pattern == "alternating":
+        return [
+            chord[i % len(chord)] if i % 2 == 0 else chord[(i + 1) % len(chord)]
+            for i in range(length)
+        ]
     else:
-        return motif
+        return chord * (length // len(chord))  # Fallback, repeat the chord
 
 
-def create_melody_from_progression(progression, bars=4):
-    """Generate a melody by following the chord progression and applying variations."""
+def generate_structured_motif(chord, length=8, pattern="repeat"):
+    """Generate a structured motif based on a fixed pattern."""
+    if pattern == "repeat":
+        motif = [
+            chord[0],
+            chord[1],
+            chord[2],
+            chord[0],
+        ]  # Simple repetition of chord notes
+    elif pattern == "ascending":
+        motif = [chord[i % len(chord)] for i in range(4)]  # Ascending motif
+    elif pattern == "descending":
+        motif = [
+            chord[len(chord) - (i % len(chord)) - 1] for i in range(4)
+        ]  # Descending motif
+
+    return motif * (length // len(motif))  # Repeat the motif to fit the length
+
+
+def create_rigid_melody_from_progression(progression, bars=4):
+    """Generate a structured melody based on fixed motifs and arpeggios."""
     melody = []
-    print(Fore.MAGENTA + f"Creating melody from progression: {progression}")
     for bar in range(bars):
         chord = progression[bar % len(progression)]
-        motif = generate_motif_from_chord(chord)
-        if bar > 0:
-            variation_type = random.choice(["transpose", "invert", "none"])
-            motif = apply_variation(motif, variation_type=variation_type)
+        if bar % 2 == 0:
+            motif = generate_structured_motif(chord, length=8, pattern="repeat")
+        else:
+            motif = generate_arpeggio_from_chord(chord, pattern="ascending", length=8)
+
         melody.extend(motif)
     return melody
 
 
-def create_bassline(bassline_root_notes, bars=4):
-    """Create an offbeat bassline based on the root notes of the chord progression."""
-    print(Fore.BLUE + "Creating bassline...")
+def create_fixed_bassline(bassline_root_notes, bars=4):
+    """Create a strict offbeat bassline based on root notes."""
     bassline = []
     for bar in range(bars):
         root_note = bassline_root_notes[bar % len(bassline_root_notes)]
-        # Add offbeat bassline (on the 'and' of every beat)
+        # Fixed offbeat bassline pattern
         bassline.extend(
             [0, root_note - 12, 0, root_note - 12, 0, root_note - 12, 0, root_note - 12]
-        )  # 16th notes
+        )
     return bassline
 
 
 def create_midi(melody, bassline, filename="randomized_trance_melody.mid"):
     """Generate MIDI file with the given melody and bassline."""
     mid = MidiFile()
-
-    print(Fore.LIGHTBLUE_EX + "Creating MIDI file...")
 
     # Track for melody
     melody_track = MidiTrack()
@@ -154,7 +151,7 @@ def create_midi(melody, bassline, filename="randomized_trance_melody.mid"):
             )
 
     mid.save(filename)
-    print(Fore.GREEN + Style.BRIGHT + f"MIDI file saved as {filename}")
+    print(f"MIDI file saved as {filename}")
 
 
 def play_midi(filename):
@@ -167,33 +164,6 @@ def play_midi(filename):
             time.sleep(1)
     except pygame.error as e:
         print(f"Error playing MIDI file: {e}")
-
-
-def plot_melody_and_bass(melody, bassline):
-    """Plot the melody and bassline using matplotlib."""
-    print(Fore.LIGHTWHITE_EX + "Plotting melody and bassline...")
-    time_stamps = [i * 0.25 for i in range(len(melody))]  # 16th notes time stamps
-    plt.figure(figsize=(12, 6))
-
-    # Plot melody
-    plt.step(time_stamps, melody, where="mid", label="Trance Melody", marker="o")
-
-    # Plot bassline (shifted downward for visual distinction)
-    bassline_shifted = [note if note > 0 else 0 for note in bassline]
-    plt.step(
-        time_stamps,
-        bassline_shifted,
-        where="mid",
-        label="Bassline (Offbeat)",
-        marker="x",
-    )
-
-    plt.xlabel("Beats")
-    plt.ylabel("Notes")
-    plt.title("Randomized Trance Melody with Bassline (MIDI Visualization)")
-    plt.grid(True)
-    plt.legend()
-    plt.show()
 
 
 if __name__ == "__main__":
@@ -213,31 +183,29 @@ if __name__ == "__main__":
         "B3": 59,
     }
 
-    # pick from the list of keys
+    # Pick from the list of keys
     root_note = random.choice(list(keys.values()))
 
     # Choose a predefined progression or create a custom one
     progression_choice = random.choice(list(predefined_progressions.keys()))
     progression_str = predefined_progressions[progression_choice]
 
-    print(Fore.GREEN + f"Using progression: {progression_str} ({progression_choice})")
+    print(f"Using progression: {progression_str} ({progression_choice})")
 
     # Generate progression and bassline based on the chosen progression string
     progression, bassline_root_notes = generate_progressions_from_string(
         root_note, progression_str
     )
 
-    # Generate a melody based on the chosen progression
-    melody = create_melody_from_progression(progression, bars=8)
+    # Generate a more structured melody based on the progression
+    melody = create_rigid_melody_from_progression(progression, bars=8)
 
-    # Generate a bassline following the root notes of the chosen progression
-    bassline = create_bassline(bassline_root_notes, bars=8)
-
-    plot_melody_and_bass(melody, bassline)
+    # Generate a fixed bassline based on root notes
+    bassline = create_fixed_bassline(bassline_root_notes, bars=8)
 
     # Save the MIDI file
-    midi_filename = get_unique_filename("generated/trance_3.mid")
+    midi_filename = get_unique_filename("generated/pygame.mid")
     create_midi(melody, bassline, filename=midi_filename)
 
     # Play the saved MIDI file
-    # play_midi(midi_filename)
+    play_midi(midi_filename)
